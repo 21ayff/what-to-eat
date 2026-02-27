@@ -1,0 +1,30 @@
+{
+  "name": "what-to-eat",
+  "version": "1.0.0",
+  "description": "今天吃什么 - 智能美食推荐应用",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "vercel-build": "vite build"
+  },
+  "keywords": [
+    "food",
+    "recommendation",
+    "vue3"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.97.0",
+    "axios": "^1.13.5",
+    "pinia": "^2.3.1",
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}
