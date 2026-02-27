@@ -27,7 +27,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// 健康检查
+// 健康检查 - Railway 默认检查 /health
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
+// 健康检查 - 兼容 /api/health
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -48,14 +57,8 @@ app.get('/api/users/profile', authMiddleware, handleGetProfile);
 const statsRouter = require('./routes/stats');
 app.use('/api/stats', authMiddleware, statsRouter);
 
-// 静态文件服务（生产环境）
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-  });
-}
+// 注意：静态文件服务已移除，前端和后端分开部署
+// 前端部署在 Netlify，后端部署在 Railway
 
 // 错误处理
 app.use((err, req, res, next) => {
