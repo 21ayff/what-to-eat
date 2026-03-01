@@ -12,9 +12,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!accessToken.value && !!user.value);
-  const userNickname = computed(() => user.value?.nickname || user.value?.email?.split('@')[0] || '访客');
+  const userNickname = computed(() => user.value?.nickname || user.value?.username || '访客');
   const userAvatar = computed(() => user.value?.avatar || null);
   const userEmail = computed(() => user.value?.email || null);
+  const userUsername = computed(() => user.value?.username || null);
 
   // 设置令牌
   const setTokens = (tokens) => {
@@ -120,6 +121,56 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  // 用户注册
+  const register = async ({ username, password, nickname }) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const result = await authAPI.register({ username, password, nickname });
+
+      if (result.data.success) {
+        user.value = result.data.user;
+        setTokens({
+          accessToken: result.data.accessToken,
+          refreshToken: result.data.refreshToken,
+        });
+        return { success: true };
+      } else {
+        return { success: false, error: result.data.error };
+      }
+    } catch (err) {
+      return { success: false, error: '注册失败，请重试' };
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // 用户登录
+  const login = async ({ username, password }) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const result = await authAPI.login({ username, password });
+
+      if (result.data.success) {
+        user.value = result.data.user;
+        setTokens({
+          accessToken: result.data.accessToken,
+          refreshToken: result.data.refreshToken,
+        });
+        return { success: true };
+      } else {
+        return { success: false, error: result.data.error };
+      }
+    } catch (err) {
+      return { success: false, error: '登录失败，请检查用户名和密码' };
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // 初始化
   initAuth();
 
@@ -133,8 +184,11 @@ export const useAuthStore = defineStore('auth', () => {
     userNickname,
     userAvatar,
     userEmail,
+    userUsername,
     sendVerifyCode,
     loginWithCode,
+    register,
+    login,
     logout,
     updateProfile,
   };

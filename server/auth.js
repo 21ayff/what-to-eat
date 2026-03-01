@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 const { dbOperations } = require('./supabase-db');
 const { sendVerifyCodeEmail, generateVerifyCode, isValidEmail } = require('./email');
 
@@ -10,17 +11,17 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 // 生成JWT令牌
 function generateTokens(user) {
   const accessToken = jwt.sign(
-    { userId: user.id, email: user.email },
+    { userId: user.id, username: user.username },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
-  
+
   const refreshToken = jwt.sign(
     { userId: user.id, type: 'refresh' },
     JWT_SECRET,
     { expiresIn: '30d' }
   );
-  
+
   return { accessToken, refreshToken };
 }
 
@@ -254,10 +255,143 @@ function authMiddleware(req, res, next) {
   next();
 }
 
+// 用户注册（用户名密码）
+async function handleRegister(req, res) {
+  try {
+    const { username, password, nickname } = req.body;
+
+    // 验证参数
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: '请输入用户名和密码',
+      });
+    }
+
+    // 验证用户名长度
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({
+        success: false,
+        error: '用户名长度应为3-20个字符',
+      });
+    }
+
+    // 验证密码长度
+    if (password.length < 6 || password.length > 20) {
+      return res.status(400).json({
+        success: false,
+        error: '密码长度应为6-20个字符',
+      });
+    }
+
+    // 检查用户名是否已存在
+    const existingUser = await dbOperations.findUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: '用户名已存在',
+      });
+    }
+
+    // 加密密码
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 创建新用户
+    const newUser = {
+      id: uuidv4(),
+      username,
+      password: hashedPassword,
+      nickname: nickname || username,
+      avatar: null,
+    };
+
+    const user = await dbOperations.createUser(newUser);
+
+    // 生成JWT令牌
+    const tokens = generateTokens(user);
+
+    res.json({
+      success: true,
+      message: '注册成功',
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        avatar: user.avatar,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+  } catch (error) {
+    console.error('注册失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '服务器错误，请稍后重试',
+    });
+  }
+}
+
+// 用户登录（用户名密码）
+async function handleLogin(req, res) {
+  try {
+    const { username, password } = req.body;
+
+    // 验证参数
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: '请输入用户名和密码',
+      });
+    }
+
+    // 查找用户
+    const user = await dbOperations.findUserByUsername(username);
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: '用户名或密码错误',
+      });
+    }
+
+    // 验证密码
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        error: '用户名或密码错误',
+      });
+    }
+
+    // 生成JWT令牌
+    const tokens = generateTokens(user);
+
+    res.json({
+      success: true,
+      message: '登录成功',
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        avatar: user.avatar,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+  } catch (error) {
+    console.error('登录失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '服务器错误，请稍后重试',
+    });
+  }
+}
+
 module.exports = {
   handleSendCode,
   handleLoginWithCode,
   handleRefreshToken,
   handleGetProfile,
+  handleRegister,
+  handleLogin,
   authMiddleware,
 };

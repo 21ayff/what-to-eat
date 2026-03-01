@@ -9,6 +9,8 @@ const {
   handleLoginWithCode, 
   handleRefreshToken,
   handleGetProfile,
+  handleRegister,
+  handleLogin,
   authMiddleware 
 } = require('./auth');
 
@@ -48,6 +50,8 @@ app.get('/api/health', (req, res) => {
 // 认证相关路由
 app.post('/api/auth/send-code', handleSendCode);
 app.post('/api/auth/login-with-code', handleLoginWithCode);
+app.post('/api/auth/register', handleRegister);
+app.post('/api/auth/login', handleLogin);
 app.post('/api/auth/refresh', handleRefreshToken);
 
 // 需要认证的路由

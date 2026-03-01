@@ -9,10 +9,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const dbOperations = {
   // 创建用户
   createUser: async (userData) => {
-    const { id, email, nickname, avatar } = userData;
+    const { id, username, password, nickname, avatar } = userData;
     const { data, error } = await supabase
       .from('users')
-      .insert([{ id, email, nickname, avatar }])
+      .insert([{ id, username, password, nickname, avatar }])
       .select()
       .single();
     
@@ -26,6 +26,18 @@ const dbOperations = {
       .from('users')
       .select('*')
       .eq('email', email)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  },
+
+  // 根据用户名查找用户
+  findUserByUsername: async (username) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
       .single();
     
     if (error && error.code !== 'PGRST116') throw error;

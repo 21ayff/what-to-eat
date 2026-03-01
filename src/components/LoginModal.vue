@@ -4,71 +4,95 @@
       <button class="close-btn" @click="close">×</button>
       
       <div class="login-header">
-        <h2>欢迎回来</h2>
-        <p>登录后享受更多功能</p>
+        <h2>{{ isRegister ? '注册账号' : '欢迎回来' }}</h2>
+        <p>{{ isRegister ? '创建一个新账号' : '登录后享受更多功能' }}</p>
       </div>
 
-      <form class="login-form" @submit.prevent="handleLogin">
-        <!-- 邮箱输入 -->
+      <form class="login-form" @submit.prevent="handleSubmit">
+        <!-- 用户名输入 -->
         <div class="form-group">
-          <label>邮箱</label>
+          <label>用户名</label>
           <div class="input-wrapper">
-            <span class="input-icon">📧</span>
+            <span class="input-icon">👤</span>
             <input
-              v-model="email"
-              type="email"
-              placeholder="请输入邮箱"
-              @input="validateEmail"
+              v-model="username"
+              type="text"
+              placeholder="请输入用户名（3-20个字符）"
+              @input="validateUsername"
             />
           </div>
-          <span class="error-msg" v-if="emailError">{{ emailError }}</span>
+          <span class="error-msg" v-if="usernameError">{{ usernameError }}</span>
         </div>
 
-        <!-- 验证码输入 -->
-        <div class="form-group">
-          <label>验证码</label>
-          <div class="verify-wrapper">
-            <div class="input-wrapper verify-input">
-              <span class="input-icon">🔐</span>
-              <input
-                v-model="code"
-                type="text"
-                placeholder="请输入验证码"
-                maxlength="6"
-              />
-            </div>
-            <button
-              type="button"
-              class="send-code-btn"
-              :disabled="!canSendCode || countdown > 0"
-              @click="sendCode"
-            >
-              {{ countdown > 0 ? `${countdown}s后重发` : '获取验证码' }}
-            </button>
+        <!-- 昵称输入（仅注册时显示） -->
+        <div class="form-group" v-if="isRegister">
+          <label>昵称（可选）</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🏷️</span>
+            <input
+              v-model="nickname"
+              type="text"
+              placeholder="请输入昵称"
+            />
           </div>
-          <span class="error-msg" v-if="codeError">{{ codeError }}</span>
         </div>
 
-        <!-- 登录按钮 -->
+        <!-- 密码输入 -->
+        <div class="form-group">
+          <label>密码</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔒</span>
+            <input
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="请输入密码（6-20个字符）"
+              @input="validatePassword"
+            />
+            <span class="toggle-password" @click="showPassword = !showPassword">
+              {{ showPassword ? '🙈' : '👁️' }}
+            </span>
+          </div>
+          <span class="error-msg" v-if="passwordError">{{ passwordError }}</span>
+        </div>
+
+        <!-- 确认密码（仅注册时显示） -->
+        <div class="form-group" v-if="isRegister">
+          <label>确认密码</label>
+          <div class="input-wrapper">
+            <span class="input-icon">🔐</span>
+            <input
+              v-model="confirmPassword"
+              :type="showPassword ? 'text' : 'password'"
+              placeholder="请再次输入密码"
+            />
+          </div>
+          <span class="error-msg" v-if="confirmPasswordError">{{ confirmPasswordError }}</span>
+        </div>
+
+        <!-- 提交按钮 -->
         <button
           type="submit"
           class="login-btn"
-          :disabled="!canLogin || loading"
+          :disabled="!canSubmit || loading"
         >
           <span v-if="loading" class="loading-spinner"></span>
-          <span v-else>登 录</span>
+          <span v-else>{{ isRegister ? '注 册' : '登 录' }}</span>
         </button>
       </form>
 
-      <!-- 错误提示 -->
-      <div class="error-toast" v-if="errorMsg">
-        {{ errorMsg }}
+      <!-- 切换登录/注册 -->
+      <div class="switch-mode">
+        <p v-if="isRegister">
+          已有账号？<a @click="switchMode">立即登录</a>
+        </p>
+        <p v-else>
+          还没有账号？<a @click="switchMode">立即注册</a>
+        </p>
       </div>
 
-      <!-- 提示信息 -->
-      <div class="login-tips">
-        <p>💡 未注册的邮箱将自动创建账号</p>
-        <p style="margin-top: 8px; font-size: 11px;">验证码将发送到您的邮箱</p>
+      <!-- 错误/成功提示 -->
+      <div class="error-toast" v-if="message" :class="{ 'success': isSuccess }">
+        {{ message }}
       </div>
     </div>
   </div>
@@ -87,87 +111,110 @@ const emit = defineEmits(['close', 'success'])
 const authStore = useAuthStore()
 
 // 表单数据
-const email = ref('')
-const code = ref('')
-const emailError = ref('')
-const codeError = ref('')
-const errorMsg = ref('')
+const username = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+const nickname = ref('')
+const usernameError = ref('')
+const passwordError = ref('')
+const confirmPasswordError = ref('')
+const message = ref('')
+const isSuccess = ref(false)
 const loading = ref(false)
-const countdown = ref(0)
+const isRegister = ref(false)
+const showPassword = ref(false)
 
-// 邮箱验证正则
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-const validateEmail = () => {
-  if (email.value && !emailRegex.test(email.value)) {
-    emailError.value = '请输入正确的邮箱地址'
+// 验证用户名
+const validateUsername = () => {
+  if (username.value && (username.value.length < 3 || username.value.length > 20)) {
+    usernameError.value = '用户名长度应为3-20个字符'
   } else {
-    emailError.value = ''
+    usernameError.value = ''
   }
 }
 
-// 是否可以发送验证码
-const canSendCode = computed(() => {
-  return emailRegex.test(email.value) && countdown.value === 0
-})
-
-// 是否可以登录
-const canLogin = computed(() => {
-  return emailRegex.test(email.value) && code.value.length === 6
-})
-
-// 发送验证码
-const sendCode = async () => {
-  if (!canSendCode.value) return
-
-  try {
-    const result = await authStore.sendVerifyCode(email.value)
-    if (result.success) {
-      // 开始倒计时
-      countdown.value = 60
-      const timer = setInterval(() => {
-        countdown.value--
-        if (countdown.value <= 0) {
-          clearInterval(timer)
-        }
-      }, 1000)
-      
-      // 提示用户查看邮箱
-      errorMsg.value = '验证码已发送，请查看邮箱'
-      setTimeout(() => errorMsg.value = '', 3000)
-    } else {
-      errorMsg.value = result.error || '发送失败，请重试'
-      setTimeout(() => errorMsg.value = '', 3000)
-    }
-  } catch (err) {
-    errorMsg.value = '网络错误，请重试'
-    setTimeout(() => errorMsg.value = '', 3000)
+// 验证密码
+const validatePassword = () => {
+  if (password.value && (password.value.length < 6 || password.value.length > 20)) {
+    passwordError.value = '密码长度应为6-20个字符'
+  } else {
+    passwordError.value = ''
   }
 }
 
-// 登录
-const handleLogin = async () => {
-  if (!canLogin.value || loading.value) return
+// 是否可以提交
+const canSubmit = computed(() => {
+  const validUsername = username.value.length >= 3 && username.value.length <= 20
+  const validPassword = password.value.length >= 6 && password.value.length <= 20
+  
+  if (isRegister.value) {
+    const validConfirm = password.value === confirmPassword.value
+    return validUsername && validPassword && validConfirm
+  }
+  
+  return validUsername && validPassword
+})
+
+// 切换登录/注册模式
+const switchMode = () => {
+  isRegister.value = !isRegister.value
+  // 清空表单
+  username.value = ''
+  password.value = ''
+  confirmPassword.value = ''
+  nickname.value = ''
+  usernameError.value = ''
+  passwordError.value = ''
+  confirmPasswordError.value = ''
+  message.value = ''
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  if (!canSubmit.value || loading.value) return
+
+  // 注册时验证确认密码
+  if (isRegister.value && password.value !== confirmPassword.value) {
+    confirmPasswordError.value = '两次输入的密码不一致'
+    return
+  }
 
   loading.value = true
-  errorMsg.value = ''
+  message.value = ''
+  isSuccess.value = false
 
   try {
-    const result = await authStore.loginWithCode({
-      email: email.value,
-      code: code.value
-    })
+    let result
+    
+    if (isRegister.value) {
+      // 注册
+      result = await authStore.register({
+        username: username.value,
+        password: password.value,
+        nickname: nickname.value || username.value
+      })
+    } else {
+      // 登录
+      result = await authStore.login({
+        username: username.value,
+        password: password.value
+      })
+    }
 
     if (result.success) {
-      emit('success')
-      close()
+      isSuccess.value = true
+      message.value = isRegister.value ? '注册成功！' : '登录成功！'
+      setTimeout(() => {
+        emit('success')
+        close()
+      }, 1000)
     } else {
-      errorMsg.value = result.error || '登录失败，请重试'
-      setTimeout(() => errorMsg.value = '', 3000)
+      message.value = result.error || (isRegister.value ? '注册失败' : '登录失败')
+      setTimeout(() => message.value = '', 3000)
     }
   } catch (err) {
-    errorMsg.value = '登录失败，请检查验证码'
-    setTimeout(() => errorMsg.value = '', 3000)
+    message.value = isRegister.value ? '注册失败，请重试' : '登录失败，请检查用户名和密码'
+    setTimeout(() => message.value = '', 3000)
   } finally {
     loading.value = false
   }
@@ -175,11 +222,15 @@ const handleLogin = async () => {
 
 // 关闭弹窗
 const close = () => {
-  email.value = ''
-  code.value = ''
-  emailError.value = ''
-  codeError.value = ''
-  errorMsg.value = ''
+  username.value = ''
+  password.value = ''
+  confirmPassword.value = ''
+  nickname.value = ''
+  usernameError.value = ''
+  passwordError.value = ''
+  confirmPasswordError.value = ''
+  message.value = ''
+  isRegister.value = false
   emit('close')
 }
 </script>
@@ -318,37 +369,10 @@ const close = () => {
   color: #999;
 }
 
-.verify-wrapper {
-  display: flex;
-  gap: 12px;
-}
-
-.verify-input {
-  flex: 1;
-}
-
-.send-code-btn {
-  padding: 14px 20px;
-  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
+.toggle-password {
   cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-  min-width: 120px;
-}
-
-.send-code-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
-}
-
-.send-code-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+  font-size: 18px;
+  user-select: none;
 }
 
 .error-msg {
@@ -396,12 +420,32 @@ const close = () => {
   to { transform: rotate(360deg); }
 }
 
+.switch-mode {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.switch-mode p {
+  font-size: 14px;
+  color: #666;
+}
+
+.switch-mode a {
+  color: #7C3AED;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.switch-mode a:hover {
+  text-decoration: underline;
+}
+
 .error-toast {
   position: absolute;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: #10b981;
+  background: #ef4444;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -410,8 +454,8 @@ const close = () => {
   white-space: nowrap;
 }
 
-.error-toast[style*="background: #ef4444"] {
-  background: #ef4444 !important;
+.error-toast.success {
+  background: #10b981;
 }
 
 @keyframes slideDown {
@@ -425,16 +469,6 @@ const close = () => {
   }
 }
 
-.login-tips {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.login-tips p {
-  font-size: 12px;
-  color: #999;
-}
-
 @media (max-width: 480px) {
   .login-modal {
     padding: 32px 24px;
@@ -442,14 +476,6 @@ const close = () => {
 
   .login-header h2 {
     font-size: 24px;
-  }
-
-  .verify-wrapper {
-    flex-direction: column;
-  }
-
-  .send-code-btn {
-    width: 100%;
   }
 }
 </style>
